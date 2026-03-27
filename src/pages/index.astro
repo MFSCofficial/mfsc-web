@@ -4,28 +4,28 @@ import Layout from "../layouts/Layout.astro";
 import { client } from "../lib/microcms";
 import type { MicroCMSListResponse } from "../lib/microcms";
 
-// ▼ ニュースの型定義
+// ▼ ニュースの型定義（★ここに画像フィールドを追加しました）
 type News = {
 	id: string;
 	title: string;
 	date: string;
 	url?: string;
 	top_image?: { url: string };
+	service_img?: { url: string }; // ★追加
+	news_img?: { url: string }; // ★追加
 };
 
 // ▼ 1. ニュース一覧用（テキスト表示用）
-// ★修正：「日付(date)」が入っている記事だけを取得（Invalid Date対策）
 const response = await client.get<MicroCMSListResponse<News>>({
 	endpoint: "news",
 	queries: {
 		fields: ["id", "title", "date", "url"],
-		filters: "date[exists]", // ★ここが重要！
+		filters: "date[exists]",
 		limit: 5,
 	},
 });
 
 // ▼ 2. スライドショー用画像の取得
-// 「トップ用画像(top_image)」がある記事だけを抽出してスライドショー化
 const sliderResponse = await client.get<MicroCMSListResponse<News>>({
 	endpoint: "news",
 	queries: {
@@ -35,11 +35,30 @@ const sliderResponse = await client.get<MicroCMSListResponse<News>>({
 	},
 });
 
-// ▼ Vegas.js形式に変換
 const vegasImages = sliderResponse.contents.map((content) => ({
 	// @ts-ignore
 	src: content.top_image.url,
 }));
+
+// ▼ 3. トップ固定画像用（★「news」から取得する処理を追加）
+// service_img が設定されている最新の記事を1件取得
+const serviceImgRes = await client.get<MicroCMSListResponse<News>>({
+	endpoint: "news",
+	queries: {
+		fields: ["service_img"],
+		filters: "service_img[exists]",
+		limit: 1,
+	},
+});
+// news_img が設定されている最新の記事を1件取得
+const newsImgRes = await client.get<MicroCMSListResponse<News>>({
+	endpoint: "news",
+	queries: { fields: ["news_img"], filters: "news_img[exists]", limit: 1 },
+});
+
+// HTML側で使いやすいように変数に入れておく
+const serviceImgUrl = serviceImgRes.contents[0]?.service_img?.url;
+const newsImgUrl = newsImgRes.contents[0]?.news_img?.url;
 ---
 
 <Layout title="MAIN">
@@ -125,14 +144,28 @@ const vegasImages = sliderResponse.contents.map((content) => ({
 				</section>
 				<div class="service-img-wrapper bgextend bgLRextendTrigger">
 					<div class="bgappearTrigger">
-						<div class="service-img"></div>
+						<div
+							class="service-img"
+							style={serviceImgUrl
+								? `background-image: url('${serviceImgUrl}');`
+								: ""}
+						>
+						</div>
 					</div>
 				</div>
 			</div>
 		</section>
 
 		<div class="news-img-wrapper bgextend bgRLextendTrigger">
-			<div class="bgappearTrigger"><div class="news-img"></div></div>
+			<div class="bgappearTrigger">
+				<div
+					class="news-img"
+					style={newsImgUrl
+						? `background-image: url('${newsImgUrl}');`
+						: ""}
+				>
+				</div>
+			</div>
 		</div>
 
 		<section id="news">
@@ -184,24 +217,16 @@ const vegasImages = sliderResponse.contents.map((content) => ({
 	</main>
 
 	<script is:inline define:vars={{ vegasImages }}>
-		// jQuery ($) を使わず、純粋なJSでロード完了を待ちます
 		window.addEventListener("load", function () {
-			// ロード完了後、jQueryが使えるかチェック
 			if (typeof $ === "undefined" || typeof $.fn.vegas === "undefined") {
 				console.error("Vegas or jQuery not loaded");
 				return;
 			}
 
-			// デフォルト画像
 			const defaultImages = [{ src: "/img/jpg/bg_main_01.jpg" }];
-
-			// microCMSの画像があればそれを使い、なければデフォルトを使う
 			const finalImages =
 				vegasImages.length > 0 ? vegasImages : defaultImages;
 
-			// ★ここにあった destroy は削除しました★
-
-			// Vegasを開始
 			$("#slider").vegas({
 				overlay: false,
 				transition: "blur",

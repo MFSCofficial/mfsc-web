@@ -133,7 +133,7 @@ body.appear #vidual-area::after {
 }
 
 /* Index.html 用：通常版 */
-body:not(.limited) #spectrum-center-text::before {
+body:not(.limited-mode) #spectrum-center-text::before {
     content: "Modern Folk Song Club";
     display: inline-block;
     overflow: hidden;
@@ -143,7 +143,7 @@ body:not(.limited) #spectrum-center-text::before {
 }
 
 /* Limited.html 用：限定版 */
-body.limited #spectrum-center-text::before {
+body.limited-mode #spectrum-center-text::before {
     content: "Modern Fxxin' Smoking Club";
     display: inline-block;
     overflow: hidden;
