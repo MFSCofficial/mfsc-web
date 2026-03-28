@@ -33,10 +33,8 @@ const vegasImages = sliderResponse.contents.map((content) => ({
 type Member = {
     id: string;
     name: string;
-    image: { url: string }; // 通常画像
-    // ▼ 追加: 限定用プロフ画像
+    image?: { url: string }; // エラー防止のため ? を追加
     image_isLimited?: { url: string };
-
     grade: any;
     parts: string | string[];
     content?: string;
@@ -56,7 +54,7 @@ const response = await client.get<MicroCMSListResponse<Member>>({
             "id",
             "name",
             "image",
-            "image_isLimited", // ▼ 取得フィールドに追加
+            "image_isLimited",
             "grade",
             "parts",
             "content",
@@ -148,11 +146,12 @@ const response = await client.get<MicroCMSListResponse<Member>>({
                                 ? member.name
                                 : "";
 
-                        // ▼▼▼ 画像の決定ロジック ▼▼▼
-                        // 限定画像があればそれを使い、なければ通常画像を使う
-                        const displayImage = member.image_isLimited
-                            ? member.image_isLimited.url
-                            : member.image.url;
+                        // ▼▼▼ 画像の決定ロジック（エラー防止策を追加） ▼▼▼
+                        // 限定画像があれば使い、なければ通常画像。どちらも無ければ空文字にしてエラーを防ぐ
+                        const displayImage =
+                            member.image_isLimited?.url ||
+                            member.image?.url ||
+                            "";
 
                         return (
                             <li class={`item ${filterClasses}`}>
@@ -164,11 +163,13 @@ const response = await client.get<MicroCMSListResponse<Member>>({
                                         class="member-link"
                                     >
                                         <div class="img-box limited-border">
-                                            {/* ▼ 決定した画像を表示 */}
-                                            <img
-                                                src={displayImage}
-                                                alt={displayName}
-                                            />
+                                            {/* ▼ 画像が存在する場合のみ img タグを出力 */}
+                                            {displayImage && (
+                                                <img
+                                                    src={displayImage}
+                                                    alt={displayName}
+                                                />
+                                            )}
                                         </div>
 
                                         <span class="main-name">
@@ -190,11 +191,12 @@ const response = await client.get<MicroCMSListResponse<Member>>({
                                     >
                                         <div class="popup-inner">
                                             <div class="popup-img-area">
-                                                {/* ▼ モーダル内も決定した画像を表示 */}
-                                                <img
-                                                    src={displayImage}
-                                                    alt={displayName}
-                                                />
+                                                {displayImage && (
+                                                    <img
+                                                        src={displayImage}
+                                                        alt={displayName}
+                                                    />
+                                                )}
                                             </div>
                                             <div class="popup-text-area">
                                                 <h3 class="popup-name">
@@ -358,7 +360,6 @@ const response = await client.get<MicroCMSListResponse<Member>>({
             padding: 8px 20px;
             cursor: pointer;
             color: #fff;
-            /* デフォルト白（ダークモード） */
             transition: all 0.3s;
         }
 
@@ -430,7 +431,7 @@ const response = await client.get<MicroCMSListResponse<Member>>({
             display: block;
             margin-top: 10px;
             font-weight: bold;
-            color: #fff; /* デフォルト白 */
+            color: #fff;
             font-size: 1rem;
             transition: color 0.3s;
         }

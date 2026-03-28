@@ -51,6 +51,19 @@ const response = await client.get<MicroCMSListResponse<Member>>({
         fields: ["id", "name", "image", "grade", "parts", "content"],
     },
 });
+
+// ▼ 追加: 取得したデータから「3年会以下」の部員だけを抽出（フィルター）する
+const visibleMembers = response.contents.filter((member) => {
+    // 学年（「2023年度入部」など）から数字だけを抽出
+    let rawGrade = Array.isArray(member.grade) ? member.grade[0] : member.grade;
+    let gradeNum = parseInt(String(rawGrade).replace(/[^0-9]/g, ""), 10);
+
+    // 現在の日付をもとに「〇年会」を算出
+    const schoolYear = getSchoolYear(gradeNum);
+
+    // schoolYearが 1, 2, 3 の部員だけを残す（4年会以上は除外）
+    return schoolYear <= 3;
+});
 ---
 
 <Layout title="MEMBER">
@@ -77,7 +90,7 @@ const response = await client.get<MicroCMSListResponse<Member>>({
             <div class="sort-container">
                 <ul class="sort-row">
                     <li class="filter-btn active" data-filter="all">全て</li>
-                    <li class="filter-btn" data-filter="grade-4">4年会</li>
+                    {/* ★4年会のボタンを削除し、3年会〜1年会のみにしました */}
                     <li class="filter-btn" data-filter="grade-3">3年会</li>
                     <li class="filter-btn" data-filter="grade-2">2年会</li>
                     <li class="filter-btn" data-filter="grade-1">1年会</li>
@@ -95,7 +108,8 @@ const response = await client.get<MicroCMSListResponse<Member>>({
 
             <ul id="member-list-wrap" class="member-grid delayScroll">
                 {
-                    response.contents.map((member) => {
+                    // ★全件(response.contents)ではなく、抽出済み(visibleMembers)の配列を回す
+                    visibleMembers.map((member) => {
                         // 学年処理
                         let rawGrade = Array.isArray(member.grade)
                             ? member.grade[0]
@@ -120,9 +134,11 @@ const response = await client.get<MicroCMSListResponse<Member>>({
                         const normalizedParts = rawPartsArray.map((p) =>
                             normalizePart(p),
                         );
+
                         const filterClasses =
                             `grade-${schoolYear} ` +
                             normalizedParts.map((p) => `part-${p}`).join(" ");
+
                         return (
                             <li class={`member-item ${filterClasses}`}>
                                 <div class="item-content">
@@ -203,7 +219,6 @@ const response = await client.get<MicroCMSListResponse<Member>>({
 
             // ▼ 手動フィルタリングロジック
             const buttons = document.querySelectorAll(".filter-btn");
-            // クラス名変更に伴いセレクタも変更
             const items = document.querySelectorAll(".member-item");
 
             buttons.forEach((btn) => {
