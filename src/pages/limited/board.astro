@@ -1,0 +1,393 @@
+---
+// src/pages/limited/board.astro
+import Layout from "../../layouts/Layout.astro";
+import { client } from "../../lib/microcms";
+import type { MicroCMSListResponse } from "../../lib/microcms";
+
+// ▼ ニュースの型定義（★slider用画像フィールドを追加）
+type News = {
+    id: string;
+    title: string;
+    date: string;
+    url?: string;
+    episode?: string;
+    top_image_isLimited?: { url: string }; // ★追加
+};
+
+// ▼ 1. 過去の掲示板をたっぷり取得（最大100件）
+const response = await client.get<MicroCMSListResponse<News>>({
+    endpoint: "news",
+    queries: {
+        fields: ["id", "title", "date", "url", "episode"],
+        filters: "date[exists]",
+        limit: 100,
+    },
+});
+
+// ▼ 2. スライドショー用画像の取得（★追加：limited/index.astroから移植）
+const sliderResponse = await client.get<MicroCMSListResponse<News>>({
+    endpoint: "news",
+    queries: {
+        fields: ["top_image_isLimited"],
+        filters: "top_image_isLimited[exists]",
+        limit: 10,
+    },
+});
+
+const vegasImages = sliderResponse.contents.map((content) => ({
+    // @ts-ignore
+    src: content.top_image_isLimited.url,
+}));
+---
+
+<Layout title="LIMITED_BOARD" isLimited={true}>
+    <div id="header-placeholder"></div>
+
+    <section id="vidual-area">
+        <div id="slider-area" class="bgextend bgRLextendTrigger">
+            <div class="bgappearTrigger">
+                <div id="slider"></div>
+            </div>
+        </div>
+
+        <h2>
+            <span class="js_typing">Bulletin Board</span><br />
+            <span class="js_typing">Archive</span>
+        </h2>
+        <dl>
+            <dt>Follow Us</dt>
+            <dd>
+                <ul>
+                    <li>
+                        <a href="https://x.com/momotenguitar">
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 1200 1227"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path
+                                    d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"
+                                    fill="currentColor"></path>
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://www.instagram.com/mfsc_modern/?hl=ja">
+                            <img
+                                src="/img/main/ico_insta.svg"
+                                alt="Instagram"
+                            />
+                        </a>
+                    </li>
+                </ul>
+            </dd>
+        </dl>
+        <div class="scrolldown1"><span>Scroll</span></div>
+    </section>
+    <main id="main-area">
+        <section id="service">
+            <h2 class="js_typing">Past Records</h2>
+            <p class="service-lead">
+                <span class="bgextend bgRLextendTrigger">
+                    <span class="bgappearTrigger"
+                        >過去の連絡事項・裏エピアーカイブ</span
+                    >
+                </span>
+            </p>
+
+            <div class="board-container bgextend bgRLextendTrigger">
+                <div class="bgappearTrigger dashboard-section">
+                    <ul class="limited-news-list">
+                        {
+                            response.contents.map((news) => (
+                                <li>
+                                    <time datetime={news.date}>
+                                        {new Date(news.date)
+                                            .toLocaleDateString("ja-JP", {
+                                                year: "numeric",
+                                                month: "2-digit",
+                                                day: "2-digit",
+                                            })
+                                            .replace(/\//g, ".")}
+                                    </time>
+
+                                    {news.url ? (
+                                        <a
+                                            href={news.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="news-title-link"
+                                        >
+                                            {news.title?.trim()}
+                                        </a>
+                                    ) : (
+                                        <span class="news-title-text">
+                                            {news.title?.trim()}
+                                        </span>
+                                    )}
+
+                                    {/* やらかしエピソード */}
+                                    {news.episode && (
+                                        <div class="episode-box">
+                                            <span class="episode-label">
+                                                裏エピ
+                                            </span>
+                                            <div
+                                                class="episode-content"
+                                                set:html={news.episode}
+                                            />
+                                        </div>
+                                    )}
+                                </li>
+                            ))
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <div class="back-btn-area">
+                <a href="/limited" class="btnlinestretches2"
+                    >ダッシュボードに戻る</a
+                >
+            </div>
+        </section>
+        <section id="contact"></section>
+    </main>
+
+    <script is:inline define:vars={{ vegasImages }}>
+        window.addEventListener("load", function () {
+            if (typeof $ === "undefined" || typeof $.fn.vegas === "undefined") {
+                console.error("Vegas or jQuery not loaded");
+                return;
+            }
+
+            // limited/index.astroと同じデフォルト画像を設定
+            const defaultImages = [
+                { src: "/img/main/top8.jpg" },
+                { src: "/img/main/top9.jpg" },
+                { src: "/img/main/top10.jpg" },
+            ];
+            const finalImages =
+                vegasImages.length > 0 ? vegasImages : defaultImages;
+
+            $("#slider").vegas({
+                overlay: false,
+                transition: "blur",
+                transitionDuration: 2000,
+                delay: 10000,
+                animationDuration: 20000,
+                animation: "kenburns",
+                slides: finalImages,
+                timer: false,
+            });
+        });
+    </script>
+    <style>
+        /* ============================================================
+           基本スタイル（ヘッダー等の調整）
+           ============================================================ */
+        #header-placeholder {
+            pointer-events: none !important;
+            position: relative;
+            z-index: -1;
+        }
+        :global(#header),
+        :global(header),
+        :global(.header) {
+            z-index: 2147483647 !important;
+            position: fixed !important;
+            pointer-events: auto !important;
+        }
+        :global(#header a),
+        :global(header a),
+        :global(.header a),
+        :global(#search-btn),
+        :global(.search-btn) {
+            pointer-events: auto !important;
+            z-index: 2147483647 !important;
+            cursor: pointer !important;
+        }
+
+        /* ▼▼▼ 修正：サブページ用スタイルをトップページ風スタイルに置き換え ▼▼▼ */
+
+        /* フォローアイコンの色がライトモードで消えないように修正 */
+        #vidual-area dl dd ul li a svg {
+            fill: currentColor;
+            color: #fff;
+        }
+        :global(body.light-mode) #vidual-area dl dd ul li a svg {
+            color: #333;
+        }
+
+        /* vidual-area自体のスタイル（limited/index.astroから移植） */
+        #vidual-area {
+            position: relative;
+            z-index: 1 !important;
+            pointer-events: none;
+        }
+        #slider-area {
+            pointer-events: none;
+            z-index: 0;
+        }
+        #vidual-area .scrolldown1 {
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        /* vidual-area内のh2スタイル（トップページ風に調整） */
+        #vidual-area h2 {
+            font-size: 3rem;
+            line-height: 1.2;
+            letter-spacing: 0.1em;
+            /* その他必要なスタイルがあれば追加してください */
+        }
+        @media (max-width: 768px) {
+            #vidual-area h2 {
+                font-size: 2rem;
+            }
+        }
+        /* ▲▲▲ 修正ここまで ▲▲▲ */
+
+        /* ============================================================
+           掲示板のスタイル（ダッシュボードと同じデザイン）
+           ============================================================ */
+        .board-container {
+            max-width: 800px;
+            margin: 0 auto 50px;
+            padding: 0 20px;
+        }
+
+        .dashboard-section {
+            --bg-color: rgba(255, 255, 255, 0.05);
+            --border-color: #555;
+            --title-color: #fff;
+            --text-color: #ddd;
+            --time-color: #aaa;
+            --hover-color: #b22222;
+
+            background: var(--bg-color);
+            border-top: 3px solid var(--border-color);
+            border-radius: 4px;
+            padding: 30px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            text-align: left;
+        }
+
+        :global(body.light-mode) .dashboard-section {
+            --bg-color: #f9f9f9;
+            --border-color: #ccc;
+            --title-color: #333;
+            --text-color: #555;
+            --time-color: #888;
+            --hover-color: #0066cc;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .limited-news-list {
+            padding: 0;
+            list-style: none;
+            margin: 0;
+            text-align: left !important;
+        }
+        .limited-news-list li {
+            padding: 20px 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 8px;
+        }
+        :global(body.light-mode) .limited-news-list li {
+            border-bottom-color: rgba(0, 0, 0, 0.05);
+        }
+        .limited-news-list li:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .limited-news-list time {
+            font-size: 0.9rem;
+            color: var(--time-color);
+            font-family: "Oswald", sans-serif;
+            letter-spacing: 0.05em;
+            display: block;
+            margin: 0;
+            line-height: 1;
+        }
+        .news-title-link,
+        .news-title-text {
+            font-size: 1.1rem;
+            color: var(--title-color);
+            text-decoration: none;
+            display: block;
+            text-align: left;
+            width: 100%;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+        }
+        .news-title-link:hover {
+            color: var(--hover-color);
+            opacity: 0.7;
+        }
+
+        /* やらかしエピソード */
+        .episode-box {
+            margin-top: 10px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid #ffcc00;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: left !important;
+        }
+        :global(body.light-mode) .episode-box {
+            background: rgba(0, 0, 0, 0.03);
+            border-left-color: #ffaa00;
+        }
+        .episode-label {
+            display: inline-block;
+            font-size: 0.8rem;
+            color: #ffcc00;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        :global(body.light-mode) .episode-label {
+            color: #d97700;
+        }
+
+        .episode-content {
+            font-size: 0.9rem;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        .episode-content :global(*) {
+            margin: 0 !important;
+            padding: 0 !important;
+            text-indent: 0 !important;
+            text-align: left !important;
+        }
+        .episode-content :global(br:first-child),
+        .episode-content :global(*:empty) {
+            display: none !important;
+        }
+
+        /* 戻るボタンエリア */
+        .back-btn-area {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            /* 削除したsub-visual-areaのレスポンシブCSSは削除しました */
+            .dashboard-section {
+                padding: 20px;
+            }
+        }
+    </style>
+</Layout>
