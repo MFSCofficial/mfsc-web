@@ -20,7 +20,7 @@ const response = await client.get<MicroCMSListResponse<News>>({
     queries: {
         fields: ["id", "title", "date", "url", "episode"],
         filters: "date[exists]",
-        limit: 5,
+        limit: 3,
     },
 });
 
