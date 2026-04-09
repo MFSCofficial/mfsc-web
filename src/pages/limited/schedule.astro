@@ -4,29 +4,29 @@ import Layout from "../../layouts/Layout.astro";
 import { client } from "../../lib/microcms";
 import type { MicroCMSListResponse } from "../../lib/microcms";
 
-// ▼ 追加: 限定用スライドショー画像の型定義
+// ▼ 追加: 限定用スライドショー画像の型定義 [cite: 145]
 type SliderNews = {
     id: string;
     top_image_isLimited?: { url: string };
 };
 
-// ▼ 追加: 限定用画像(top_image_isLimited)を取得
+// ▼ 追加: 限定用画像(top_image_isLimited)を取得 [cite: 146]
 const sliderResponse = await client.get<MicroCMSListResponse<SliderNews>>({
     endpoint: "news",
     queries: {
-        fields: ["top_image_isLimited"], // 限定用フィールドを指定
-        filters: "top_image_isLimited[exists]", // 画像がある記事だけ
+        fields: ["top_image_isLimited"],
+        filters: "top_image_isLimited[exists]",
         limit: 10,
     },
 });
 
-// ▼ 追加: Vegas.js形式に変換
+// ▼ 追加: Vegas.js形式に変換 [cite: 147]
 const vegasImages = sliderResponse.contents.map((content) => ({
     // @ts-ignore
     src: content.top_image_isLimited.url,
 }));
 
-// ▼ スケジュールデータの設計図
+// ▼ スケジュールデータの設計図 [cite: 148]
 type Schedule = {
     id: string;
     title: string;
@@ -38,13 +38,16 @@ type Schedule = {
     isLimited?: boolean;
 };
 
-// ▼ データを取得
+// ▼ データを取得（限定イベントのみにフィルタリング）
 const response = await client.get<MicroCMSListResponse<Schedule>>({
     endpoint: "schedules",
-    queries: { limit: 100 },
+    queries: {
+        limit: 100,
+        filters: "isLimited[equals]true", // ここでAPI側から限定のみ取得 [cite: 149]
+    },
 });
 
-// ▼ 月の並び順
+// ▼ 月の並び順 [cite: 150]
 const monthOrder = [
     "4月",
     "5月",
@@ -60,7 +63,7 @@ const monthOrder = [
     "3月",
 ];
 
-// ▼ データを月ごとに振り分け
+// ▼ データを月ごとに振り分け [cite: 151, 152]
 const groupedSchedules: Record<string, Schedule[]> = {};
 monthOrder.forEach((m) => (groupedSchedules[m] = []));
 
@@ -70,38 +73,28 @@ response.contents.forEach((s) => {
 
     if (groupedSchedules[m]) {
         groupedSchedules[m].push(s);
-    } else {
-        if (!groupedSchedules["Other"]) groupedSchedules["Other"] = [];
-        groupedSchedules["Other"].push(s);
     }
 });
 
-// ▼▼▼ 並び替えのためのスコア計算関数（修正版） ▼▼▼
+// ▼▼▼ 並び替えのためのスコア計算関数 [cite: 153-160]
 const getSortScore = (event: Schedule) => {
-    // ★修正ポイント：timingが無い(undefined)場合は空文字にする安全装置
     const timingText = event.timing || "";
-
-    // 1. 時期スコア（小さいほど上）
     let timingScore = 99;
     if (timingText.includes("上旬")) timingScore = 10;
     else if (timingText.includes("中旬")) timingScore = 20;
     else if (timingText.includes("下旬")) timingScore = 30;
 
-    // 2. 種類スコア（小さいほど上）
-    // 学内(一般)=1, 学内(限定)=2, 渉外=3, その他=4
     let typeScore = 4;
     const typeName = event.type && event.type.length > 0 ? event.type[0] : "";
-
     if (typeName.includes("学内")) {
-        typeScore = event.isLimited ? 2 : 1;
+        typeScore = 2; // 限定ページなので一律限定スコア [cite: 158]
     } else if (typeName.includes("渉外")) {
         typeScore = 3;
     }
-
     return { timingScore, typeScore };
 };
 
-// ▼ タイトルでグループ化しつつ、代表イベントでソートする関数
+// ▼ タイトルでグループ化しつつ、代表イベントでソートする関数 [cite: 161-165]
 const groupAndSortEvents = (events: Schedule[]) => {
     const map = new Map<string, Schedule[]>();
     events.forEach((e) => {
@@ -125,7 +118,6 @@ const groupAndSortEvents = (events: Schedule[]) => {
         if (diffTiming !== 0) return diffTiming;
         return a.sortKey.typeScore - b.sortKey.typeScore;
     });
-
     return groups;
 };
 ---
@@ -140,40 +132,9 @@ const groupAndSortEvents = (events: Schedule[]) => {
             </div>
         </div>
         <h2>
-            <span class="js_typing">Members Only</span><br /><span
-                class="js_typing">Secret Schedule</span
-            >
+            <span class="js_typing">Members Only</span><br />
+            <span class="js_typing">Secret Schedule</span>
         </h2>
-        <dl>
-            <dt>Follow Us</dt>
-            <dd>
-                <ul>
-                    <li>
-                        <a href="https://x.com/momotenguitar">
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 1200 1227"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path
-                                    d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"
-                                    fill="white"></path>
-                            </svg>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="https://www.instagram.com/mfsc_modern/?hl=ja">
-                            <img
-                                src="/img/main/ico_insta.svg"
-                                alt="Instagram"
-                            />
-                        </a>
-                    </li>
-                </ul>
-            </dd>
-        </dl>
         <div class="scrolldown1"><span>Scroll</span></div>
     </section>
 
@@ -181,8 +142,8 @@ const groupAndSortEvents = (events: Schedule[]) => {
         <section id="service1">
             <h2 class="js_typing">INTERNAL SCHEDULE</h2>
             <p style="text-align:center; margin-bottom:40px;">
-                部員用スケジュール（全体＋内部予定）です。<br />
-                同じイベント名のものはまとめて表示されます。
+                部員用限定スケジュールです。<br />
+                こちらはNBで残っているアーカイブ動画、渉外で撮影した動画すべて掲載しています。
             </p>
 
             <section class="details-wrapper">
@@ -219,9 +180,7 @@ const groupAndSortEvents = (events: Schedule[]) => {
                                                         <div class="group-content">
                                                             {group.items.map(
                                                                 (event) => (
-                                                                    <div
-                                                                        class={`sub-event-row ${event.isLimited ? "is-limited" : ""}`}
-                                                                    >
+                                                                    <div class="sub-event-row is-limited">
                                                                         <div class="sub-event-info">
                                                                             {event.url ? (
                                                                                 <a
@@ -235,7 +194,7 @@ const groupAndSortEvents = (events: Schedule[]) => {
                                                                                     <span class="timing link-active">
                                                                                         {
                                                                                             event.timing
-                                                                                        }{" "}
+                                                                                        }
                                                                                         <span class="link-icon">
                                                                                             🔗
                                                                                         </span>
@@ -248,12 +207,6 @@ const groupAndSortEvents = (events: Schedule[]) => {
                                                                                     }
                                                                                 </span>
                                                                             )}
-
-                                                                            {event.isLimited && (
-                                                                                <span class="mini-badge">
-                                                                                    🔒
-                                                                                </span>
-                                                                            )}
                                                                         </div>
 
                                                                         {event.archives && (
@@ -262,7 +215,7 @@ const groupAndSortEvents = (events: Schedule[]) => {
                                                                                     type="button"
                                                                                     class="accordion-trigger mini-trigger"
                                                                                 >
-                                                                                    詳細
+                                                                                    動画リンク
                                                                                     ▼
                                                                                 </button>
                                                                                 <div
@@ -287,7 +240,7 @@ const groupAndSortEvents = (events: Schedule[]) => {
                                             </ul>
                                         ) : (
                                             <p class="no-event">
-                                                予定はありません
+                                                限定予定はありません
                                             </p>
                                         )}
                                     </div>
@@ -301,24 +254,22 @@ const groupAndSortEvents = (events: Schedule[]) => {
     </main>
 
     <script>
+        // [cite: 246-252] のアコーディオン制御を継承
         document.addEventListener("DOMContentLoaded", () => {
             const triggers = document.querySelectorAll(".accordion-trigger");
-
             triggers.forEach((trigger) => {
                 trigger.addEventListener("click", (e) => {
                     const target = e.currentTarget;
                     if (!(target instanceof HTMLElement)) return;
-
                     target.classList.toggle("active");
                     const content = target.nextElementSibling;
-
                     if (content instanceof HTMLElement) {
                         if (content.style.display === "none") {
                             content.style.display = "block";
-                            target.textContent = "詳細 ▲";
+                            target.textContent = "動画リンク ▲";
                         } else {
                             content.style.display = "none";
-                            target.textContent = "詳細 ▼";
+                            target.textContent = "動画リンク ▼";
                         }
                     }
                 });
@@ -327,25 +278,15 @@ const groupAndSortEvents = (events: Schedule[]) => {
     </script>
 
     <script is:inline define:vars={{ vegasImages }}>
+        // [cite: 252-256] のVegasスライダー制御を継承
         window.addEventListener("load", function () {
-            // jQueryとVegasが読み込まれているかチェック
-            if (typeof $ === "undefined" || typeof $.fn.vegas === "undefined") {
-                console.error("Vegas or jQuery not loaded");
+            if (typeof $ === "undefined" || typeof $.fn.vegas === "undefined")
                 return;
-            }
-
-            // 限定用画像が1枚もなかった場合のデフォルト画像（お好きな画像パスに変えてください）
             const defaultImages = [{ src: "/img/jpg/bg_main_01.jpg" }];
-
-            // 画像があればそれを使い、なければデフォルトを使う
             const finalImages =
                 vegasImages.length > 0 ? vegasImages : defaultImages;
-
-            // ★修正: destroyは削除しました
-
-            // Vegasを開始
             $("#slider").vegas({
-                overlay: false, // 網掛けオーバーレイ（必要なら true などのパスを指定）
+                overlay: false,
                 transition: "blur",
                 transitionDuration: 2000,
                 delay: 10000,
@@ -357,6 +298,7 @@ const groupAndSortEvents = (events: Schedule[]) => {
     </script>
 
     <style>
+        /*  [cite: 256-306] のスタイルをベースに、is-limited をデフォルト化 */
         .schedule-container {
             max-width: 900px;
             margin: 0 auto;
@@ -377,7 +319,6 @@ const groupAndSortEvents = (events: Schedule[]) => {
             font-size: 1.5rem;
             font-weight: bold;
             color: #fff;
-            font-family: "Oswald", sans-serif;
             border-bottom: 3px solid #fff;
             display: inline-block;
         }
@@ -418,16 +359,13 @@ const groupAndSortEvents = (events: Schedule[]) => {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            padding: 10px 0;
+            padding: 10px 15px;
             border-bottom: 1px dashed #444;
+            background: rgba(217, 83, 79, 0.05);
+            margin: 0 -15px;
         }
         .sub-event-row:last-child {
             border-bottom: none;
-        }
-        .sub-event-row.is-limited {
-            background: rgba(217, 83, 79, 0.05);
-            margin: 0 -15px;
-            padding: 10px 15px;
         }
         .sub-event-info {
             display: flex;
@@ -463,16 +401,11 @@ const groupAndSortEvents = (events: Schedule[]) => {
             cursor: pointer;
             transition: all 0.3s;
         }
-        .mini-trigger:hover {
-            border-color: #aaa;
-            color: #fff;
-        }
         .accordion-content {
             margin-top: 10px;
             text-align: left;
             font-size: 0.9rem;
             color: #ccc;
-            line-height: 1.5;
             background: rgba(0, 0, 0, 0.3);
             padding: 10px;
             border-radius: 4px;
@@ -486,64 +419,11 @@ const groupAndSortEvents = (events: Schedule[]) => {
         }
         .mini-badge {
             font-size: 0.8rem;
-            cursor: help;
         }
         .no-event {
             color: #666;
             font-size: 0.9rem;
             padding-top: 10px;
-        }
-
-        /* ライトモード対応 */
-        :global(body.light-mode) .month-section,
-        :global(body.light) .month-section {
-            border-bottom-color: #ddd;
-        }
-        :global(body.light-mode) .month-header h3,
-        :global(body.light) .month-header h3 {
-            color: #333;
-            border-bottom-color: #333;
-        }
-        :global(body.light-mode) .event-group-item,
-        :global(body.light) .event-group-item {
-            background: #fff;
-            border-color: #ddd;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-        :global(body.light-mode) .group-header,
-        :global(body.light) .group-header {
-            background: #f0f0f0;
-            border-bottom-color: #ddd;
-        }
-        :global(body.light-mode) .group-title,
-        :global(body.light) .group-title {
-            color: #333;
-        }
-        :global(body.light-mode) .badge,
-        :global(body.light) .badge {
-            background: #0066cc;
-        }
-        :global(body.light-mode) .sub-event-row,
-        :global(body.light) .sub-event-row {
-            border-bottom-color: #eee;
-        }
-        :global(body.light-mode) .sub-event-row.is-limited,
-        :global(body.light) .sub-event-row.is-limited {
-            background: rgba(255, 153, 0, 0.05);
-        }
-        :global(body.light-mode) .timing,
-        :global(body.light) .timing {
-            color: #555;
-        }
-        :global(body.light-mode) .timing.link-active,
-        :global(body.light) .timing.link-active {
-            color: #0066cc;
-            border-bottom-color: #0066cc;
-        }
-        :global(body.light-mode) .accordion-content,
-        :global(body.light) .accordion-content {
-            background: #f9f9f9;
-            color: #555;
         }
 
         @media (max-width: 768px) {
@@ -553,10 +433,6 @@ const groupAndSortEvents = (events: Schedule[]) => {
             .month-header {
                 width: 100%;
                 margin-bottom: 15px;
-                border-bottom: none;
-            }
-            .month-header h3 {
-                border-bottom-width: 2px;
             }
             .month-body {
                 padding-left: 0;
@@ -568,7 +444,6 @@ const groupAndSortEvents = (events: Schedule[]) => {
                 width: 100%;
                 margin-left: 0;
                 margin-top: 5px;
-                max-width: 100%;
                 text-align: left;
             }
         }

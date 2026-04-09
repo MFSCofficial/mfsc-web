@@ -228,7 +228,7 @@ const groupAndSortEvents = (events: Schedule[]) => {
                                                                                     type="button"
                                                                                     class="accordion-trigger mini-trigger"
                                                                                 >
-                                                                                    詳細
+                                                                                    動画リンク
                                                                                     ▼
                                                                                 </button>
                                                                                 <div
@@ -253,7 +253,7 @@ const groupAndSortEvents = (events: Schedule[]) => {
                                             </ul>
                                         ) : (
                                             <p class="no-event">
-                                                予定はありません
+                                                未定（個人企画があるかも?）
                                             </p>
                                         )}
                                     </div>
@@ -281,10 +281,10 @@ const groupAndSortEvents = (events: Schedule[]) => {
                     if (content instanceof HTMLElement) {
                         if (content.style.display === "none") {
                             content.style.display = "block";
-                            target.textContent = "詳細 ▲";
+                            target.textContent = "動画リンク ▲";
                         } else {
                             content.style.display = "none";
-                            target.textContent = "詳細 ▼";
+                            target.textContent = "動画リンク ▼";
                         }
                     }
                 });
