@@ -33,7 +33,7 @@ const vegasImages = sliderResponse.contents.map((content) => ({
 type Member = {
     id: string;
     name: string;
-    image?: { url: string }; // エラー防止のため ? を追加
+    image?: { url: string };
     image_isLimited?: { url: string };
     grade: any;
     parts: string | string[];
@@ -65,6 +65,22 @@ const response = await client.get<MicroCMSListResponse<Member>>({
         ],
     },
 });
+
+// ▼▼▼ 追加：存在する学年リストを動的に生成 ▼▼▼
+const allGrades = [
+    ...new Set(
+        response.contents.map((member) => {
+            let rawGrade = Array.isArray(member.grade)
+                ? member.grade[0]
+                : member.grade;
+            let gradeNum = parseInt(
+                String(rawGrade).replace(/[^0-9]/g, ""),
+                10,
+            );
+            return getSchoolYear(gradeNum);
+        }),
+    ),
+].sort((a, b) => b - a); // 降順にソート（例: 6, 5, 4...）
 ---
 
 <Layout title="LIMITED_MEMBER" isLimited={true}>
@@ -95,11 +111,17 @@ const response = await client.get<MicroCMSListResponse<Member>>({
             <div class="sort-container">
                 <ul class="sort-row">
                     <li class="filter-btn active" data-filter="all">全て</li>
-                    <li class="filter-btn" data-filter="grade-5">5年会</li>
-                    <li class="filter-btn" data-filter="grade-4">4年会</li>
-                    <li class="filter-btn" data-filter="grade-3">3年会</li>
-                    <li class="filter-btn" data-filter="grade-2">2年会</li>
-                    <li class="filter-btn" data-filter="grade-1">1年会</li>
+                    {/* ▼ 学年ボタンを動的に生成 */}
+                    {
+                        allGrades.map((year) => (
+                            <li
+                                class="filter-btn"
+                                data-filter={`grade-${year}`}
+                            >
+                                {year}年会
+                            </li>
+                        ))
+                    }
                 </ul>
                 <ul class="sort-row">
                     <li class="filter-btn" data-filter="part-Vo">Vo</li>
@@ -146,8 +168,7 @@ const response = await client.get<MicroCMSListResponse<Member>>({
                                 ? member.name
                                 : "";
 
-                        // ▼▼▼ 画像の決定ロジック（エラー防止策を追加） ▼▼▼
-                        // 限定画像があれば使い、なければ通常画像。どちらも無ければ空文字にしてエラーを防ぐ
+                        // ▼▼▼ 画像の決定ロジック ▼▼▼
                         const displayImage =
                             member.image_isLimited?.url ||
                             member.image?.url ||
@@ -163,7 +184,6 @@ const response = await client.get<MicroCMSListResponse<Member>>({
                                         class="member-link"
                                     >
                                         <div class="img-box limited-border">
-                                            {/* ▼ 画像が存在する場合のみ img タグを出力 */}
                                             {displayImage && (
                                                 <img
                                                     src={displayImage}
@@ -245,7 +265,6 @@ const response = await client.get<MicroCMSListResponse<Member>>({
                                                             : "紹介文なし"}
                                                     </div>
 
-                                                    {/* 限定ページの見せ場 */}
                                                     {member.private_content && (
                                                         <div class="private-comment">
                                                             <p class="section-label secret">
@@ -309,20 +328,15 @@ const response = await client.get<MicroCMSListResponse<Member>>({
 
     <script is:inline define:vars={{ vegasImages }}>
         window.addEventListener("load", function () {
-            // jQueryとVegasが読み込まれているかチェック
             if (typeof $ === "undefined" || typeof $.fn.vegas === "undefined") {
                 console.error("Vegas or jQuery not loaded");
                 return;
             }
 
-            // 限定用画像が1枚もなかった場合のデフォルト画像
             const defaultImages = [{ src: "/img/jpg/bg_main_01.jpg" }];
-
-            // 画像があればそれを使い、なければデフォルトを使う
             const finalImages =
                 vegasImages.length > 0 ? vegasImages : defaultImages;
 
-            // Vegasを開始
             $("#slider").vegas({
                 overlay: false,
                 transition: "blur",
@@ -336,7 +350,6 @@ const response = await client.get<MicroCMSListResponse<Member>>({
     </script>
 
     <style>
-        /* 一般ページとほぼ同じですが、ライトモード対応を含めています */
         .sort-container {
             margin-bottom: 40px;
             text-align: center;
@@ -363,7 +376,6 @@ const response = await client.get<MicroCMSListResponse<Member>>({
             transition: all 0.3s;
         }
 
-        /* ライトモード対応 */
         :global(body.light-mode) .filter-btn,
         :global(body.light) .filter-btn {
             color: #333;
@@ -436,7 +448,6 @@ const response = await client.get<MicroCMSListResponse<Member>>({
             transition: color 0.3s;
         }
 
-        /* ライトモード対応 */
         :global(body.light-mode) .main-name,
         :global(body.light) .main-name {
             color: #333;
